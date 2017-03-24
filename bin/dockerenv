@@ -1,0 +1,55 @@
+#!/bin/bash
+
+if [ -n "$DOCKER_ENV_VERSION" ]; then
+    echo "Docker environment already activated."
+    return 1
+fi
+
+if [ $# -lt 2 ]; then
+    echo "Usage: source $0 <docker_tag> <volume_path>"
+    return 2
+fi
+
+export DOCKER_ENV_ROOT=$(pwd)
+export DOCKER_ENV_VERSION=$1
+export DOCKER_VOL_PATH=$DOCKER_ENV_ROOT/$2
+export OLD_PATH=$PATH
+
+if [ -n "$ZSH_VERSION" ]; then
+    export BIN_PATH=${0:a:h}
+elif [ -n "$BASH_VERSION" ]; then
+    export BIN_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    echo "The current shell is not supported"
+    return 3
+fi
+
+export PATH=$BIN_PATH:$PATH
+
+hash -r
+
+function deactivate_dockerenv()
+{
+    echo "Deactivating dockerenv"
+    export PATH=$OLD_PATH
+
+    rm $BIN_PATH/dg++
+    rm $BIN_PATH/drun
+
+    unset -f deactivate_dockerenv
+
+    unset BIN_PATH
+    unset DOCKER_ENV_ACTIVATED
+    unset DOCKER_ENV_ROOT
+    unset DOCKER_ENV_VERSION
+    unset DOCKER_VOL_PATH
+    unset OLD_PATH
+}
+
+echo "Activating dockerenv with tag $DOCKER_ENV_VERSION with BIN_PATH set to $BIN_PATH"
+
+echo "exec docker run --rm -e APP_UID=$UID -e APP_GID=$GID -v $DOCKER_VOL_PATH:/app base-cpp:$DOCKER_ENV_VERSION /bin/bash -c \"cd /app; \$*\"" > $BIN_PATH/drun
+chmod 755 $BIN_PATH/drun
+
+echo "exec docker run --rm -e APP_UID=$UID -e APP_GID=$GID -v $DOCKER_VOL_PATH:/app base-cpp:$DOCKER_ENV_VERSION /bin/bash -c \"cd /app; g++ \$*\"" > $BIN_PATH/dg++
+chmod 755 $BIN_PATH/dg++

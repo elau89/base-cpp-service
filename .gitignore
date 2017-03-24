@@ -1,0 +1,7 @@
+*.log
+*.sw?
+
+packages/
+
+bin/dg++
+bin/drun
